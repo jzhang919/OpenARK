@@ -83,7 +83,7 @@ int main() {
 							 // option flags
 	bool showHands = true, showPlanes = false, useSVM = true, useEdgeConn = false, showArea = false, playing = true;
 
-	const std::string directory_path = "C:\\dev\\OpenARK_dataset\\human-walk\\";
+	const std::string directory_path = "C:\\Users\\JZHAN299\\Documents\\OpenARK_Data\\james-1\\";
 
 	// turn on the camera
 	camera->beginCapture();
@@ -137,11 +137,9 @@ int main() {
 
 	std::string depth_path = directory_path + "depth\\";
 	std::string rgb_path = directory_path + "rgb\\";
-	if (boost::filesystem::exists(depth_path)) {
-		boost::filesystem::create_directories(depth_path);
-	} if (boost::filesystem::exists(rgb_path)) {
-		boost::filesystem::create_directories(rgb_path);
-	}
+	
+	boost::filesystem::create_directories(depth_path);
+	boost::filesystem::create_directories(rgb_path);
 
 	for (int i = 0; i < xyzMaps.size(); ++i) {
 		cout << "Writing " << i << " / " << xyzMaps.size() << endl;
@@ -156,7 +154,6 @@ int main() {
 	// Read in all the rgb images
 	std::vector<std::string> rgb_files;
 	boost::filesystem::path rgb_dir(directory_path + "rgb\\");
-
 	if (is_directory(rgb_dir)) {
 		boost::filesystem::directory_iterator end_iter;
 		for (boost::filesystem::directory_iterator dir_itr(rgb_dir); dir_itr != end_iter; ++dir_itr) {
@@ -167,7 +164,6 @@ int main() {
 	}
 	std::vector<std::string> depth_files;
 	boost::filesystem::path depth_dir(directory_path + "depth\\");
-
 	if (is_directory(depth_dir)) {
 		boost::filesystem::directory_iterator end_iter;
 		for (boost::filesystem::directory_iterator dir_itr(depth_dir); dir_itr != end_iter; ++dir_itr) {
@@ -180,9 +176,7 @@ int main() {
 
 	// Run neural network to predict where the human joints are
 	std::string joint_path = directory_path + "joint\\";
-	if (boost::filesystem::exists(joint_path)) {
-		boost::filesystem::create_directories(joint_path);
-	}
+	boost::filesystem::create_directories(joint_path);
 
 	std::shared_ptr<HumanDetector> human_detector = std::make_shared<HumanDetector>();
 	int frame = 0;
@@ -204,6 +198,7 @@ int main() {
 		//cout << human_detector->getHumanBodies().size() << endl;
 		human_detector->detectPoseRGB(rgb_map);
 		std::vector<cv::Point> rgbJoints;
+		cout << "Human bodies: " << human_detector->getHumanBodies().size() << endl;
 		if (human_detector->getHumanBodies().size() != 0) {
 			int front_id = -1, min_dist = 100;
 			for (int i = 0; i < human_detector->getHumanBodies().size(); i++) {
@@ -214,6 +209,7 @@ int main() {
 					min_dist = xyz_map.at<cv::Vec3f>(pt)[2];
 				}
 			}
+			printf("Front id is: %d\n", front_id);
 			if (front_id == -1) {
 				cout << "No humans found" << endl;
 				continue;
