@@ -22,7 +22,7 @@
 #define GLOG_minloglevel 3
 
 // OpenARK Libraries
-#include "Version.h"
+#include "Vresion.h"
 #ifdef PMDSDK_ENABLED
 #include "PMDCamera.h"
 #endif
@@ -171,41 +171,62 @@ int main(int argc, char ** argv) {
     }
 
     cv::namedWindow("RGB Visualization");
-	const auto camera = std::make_shared<MockCamera>(path.c_str());
+	const auto camera = std::make_shared<RS2Camera>(path.c_str());
 	std::shared_ptr<HumanDetector> human_detector = std::make_shared<HumanDetector>();
 
 	auto viewer = Visualizer::getPCLVisualizer();
 	auto vp0 = Visualizer::createPCLViewport(0, 0, 0.7, 1), vp1 = Visualizer::createPCLViewport(0.7, 0, 1, 1);
 	int i = 0;
-	while (camera->hasNext()) {
+	std::vector<cv::Point> rgbJoints;
+	while (true) { 
 		camera->nextFrame(false);
 		cv::Mat xyzMap = camera->getXYZMap();
 		cv::Mat rgbMap = camera->getRGBMap();
-        long long deltaT = camera->getDeltaT();
-		std::vector<cv::Point> rgbJoints = camera->getJoints();
+		human_detector->getHumanBodies.clear();
+		human_detector->detectPoseRGB(rgbMap);
+        long long deltaT = 1;
+		if (human_detector->getHumanBodies().size() != 0) {
+			int front_id = -1, min_dist = 100;
+			for (int i = 0; i < human_detector->getHumanBodies().size(); i++) {
+				cv::Point pt(human_detector->getHumanBodies()[i]->MPIISkeleton2D[1].x, human_detector->getHumanBodies()[i]->MPIISkeleton2D[1].y);
+				cout << xyzMap.at<cv::Vec3f>(pt)[2] << endl;
+				if (xyzMap.at<cv::Vec3f>(pt)[2] < min_dist) {
+					front_id = i;
+					min_dist = xyzMap.at<cv::Vec3f>(pt)[2];
+				}
+			}
+			if (front_id == -1) {
+				cout << "No humans found" << endl;
+				continue;
+			}
+			if (min_dist > 8 || min_dist < 1) {
+				cout << "Not in range" << endl;
+				continue;
+			}
+			rgbJoints = human_detector->getHumanBodies()[front_id]->MPIISkeleton2D;
+			// Tracking code
+			human_detector->update(xyzMap, rgbMap, rgbJoints, double(deltaT) / 1e9);
+			std::shared_ptr<HumanAvatar> avatar_model = human_detector->getAvatarModel();
 
-		// Tracking code
-		human_detector->update(xyzMap, rgbMap, rgbJoints, double(deltaT)/1e9);
-		std::shared_ptr<HumanAvatar> avatar_model = human_detector->getAvatarModel();
+			// visualize
+			cv::Mat rgbVis = rgbMap.clone();
+			for (int i = 0; i < avatar_model->numJoints(); ++i) {
+				Eigen::Vector2d v = avatar_model->getJointPosition2d(i);
+				cv::circle(rgbVis, cv::Point(int(v.x()), int(v.y())), 3, cv::Scalar(0, 0, 255));
+			}
+			for (size_t i = 0; i < rgbJoints.size(); ++i) {
+				cv::circle(rgbVis, rgbJoints[i], 3, cv::Scalar(255, 0, 0));
+			}
+			// render the human in GUI
+			cv::imshow("RGB Visualization", rgbVis);
+			avatar_model->visualize(viewer, "o1_ava_", vp1);
+			avatar_model->visualize(viewer, "ava_", vp0);
+			auto dataCloud = util::toPointCloud<pcl::PointXYZRGBA>(xyzMap, true, true, 3);
+			Visualizer::visualizeCloud(dataCloud, "o1_data", vp1);
 
-        // visualize
-        cv::Mat rgbVis = rgbMap.clone();
-        for (int i = 0; i < avatar_model->numJoints(); ++i) {
-            Eigen::Vector2d v = avatar_model->getJointPosition2d(i);
-            cv::circle(rgbVis, cv::Point(int(v.x()), int(v.y())), 3, cv::Scalar(0, 0, 255));
-        }
-        for (size_t i = 0; i < rgbJoints.size(); ++i) {
-            cv::circle(rgbVis, rgbJoints[i], 3, cv::Scalar(255, 0, 0));
-        }
-		// render the human in GUI
-        cv::imshow("RGB Visualization", rgbVis);
-		avatar_model->visualize(viewer, "o1_ava_", vp1);
-		avatar_model->visualize(viewer, "ava_", vp0);
-        auto dataCloud = util::toPointCloud<pcl::PointXYZRGBA>(xyzMap, true, true, 3);
-        Visualizer::visualizeCloud(dataCloud, "o1_data", vp1);
-
-		viewer->spinOnce();
-
+			viewer->spinOnce();
+		}
+		cv::imshow(camera->getModelName() + " RGB Map", rgbMap);
 		int c = cv::waitKey(1);
 		i++;
 
