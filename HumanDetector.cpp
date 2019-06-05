@@ -74,13 +74,14 @@ namespace ark {
     double HumanDetector::update(cv::Mat& xyzMap, cv::Mat& rgbMap, std::vector<cv::Point>& rgbJoints, double deltat) {
         cv::Mat out;
         segmentAvatar(xyzMap, rgbJoints, out);
-        //std::cerr << out.size() << "OOO\n";
-        //cv::imshow("Segm", out);
+        std::cerr << out.size() << "OOO\n";
+        cv::imshow("Segm", out);
 
         // convert to PCL point cloud
         auto humanCloudRaw = util::toPointCloud<pcl::PointXYZ>(out, true, true);
+		cout << *humanCloudRaw << endl;
         auto humanCloud = denoisePointCloud(humanCloudRaw); // denoise and downsample
-
+		cout << *humanCloud << endl;
         HumanAvatar::EigenCloud_T xyzJoints;
         HumanAvatar::EigenCloud_T xyzJointsSafe;
 
@@ -614,14 +615,14 @@ namespace ark {
     {
         // Filter Background
         cv::Mat floodFillMap = xyz_map.clone();
-        filterByDepth(floodFillMap, 2, 4);
+        filterByDepth(floodFillMap, 1, 3);
         cv::Mat ground = floodFillMap.clone();
-        filterByHeight(ground, points_on_target[12].y);
+        //filterByHeight(ground, points_on_target[12].y);
 
         // Remove Plane
         //auto viewer = Visualizer::getPCLVisualizer();
         auto groundCloud = util::toPointCloud<pcl::PointXYZ>(ground);
-
+		cout << *groundCloud << endl;
         pcl::ModelCoefficients::Ptr coefficients(new pcl::ModelCoefficients);
         pcl::PointIndices::Ptr inliers(new pcl::PointIndices);
         // Create the segmentation object

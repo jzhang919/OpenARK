@@ -167,9 +167,15 @@ int main(int argc, char ** argv) {
 	camera->beginCapture();
 	auto viewer = Visualizer::getPCLVisualizer();
 	auto vp0 = Visualizer::createPCLViewport(0, 0, 0.7, 1), vp1 = Visualizer::createPCLViewport(0.7, 0, 1, 1);
+	auto t_end = std::chrono::high_resolution_clock::now();
 	while (true) {
 		cv::Mat xyzMap = camera->getXYZMap();
 		cv::Mat rgbMap = camera->getRGBMap();
+		auto t_start = t_end;
+		t_end = std::chrono::high_resolution_clock::now();
+		long long deltaT = std::chrono::duration<double, std::nano>(t_end - t_start).count();
+		cout << "DeltaT: " << deltaT << endl;
+		human_detector->getHumanBodies().clear();
 		human_detector->detectPoseRGB(rgbMap);
 		std::vector<cv::Point> rgbJoints;
 		if (human_detector->getHumanBodies().size() != 0) {
@@ -192,7 +198,6 @@ int main(int argc, char ** argv) {
 			}
 			rgbJoints = human_detector->getHumanBodies()[front_id]->MPIISkeleton2D;
 			// Tracking code
-			long long deltaT = 1; //TODO: Not hardcode this
 			human_detector->update(xyzMap, rgbMap, rgbJoints, double(deltaT) / 1e9);
 			std::shared_ptr<HumanAvatar> avatar_model = human_detector->getAvatarModel();
 
