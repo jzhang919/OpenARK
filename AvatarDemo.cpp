@@ -176,7 +176,6 @@ int main(int argc, char ** argv) {
 
 	auto viewer = Visualizer::getPCLVisualizer();
 	auto vp0 = Visualizer::createPCLViewport(0, 0, 0.7, 1), vp1 = Visualizer::createPCLViewport(0.7, 0, 1, 1);
-	int i = 0;
 	while (camera->hasNext()) {
 		camera->nextFrame(false);
 		cv::Mat xyzMap = camera->getXYZMap();
@@ -207,7 +206,6 @@ int main(int argc, char ** argv) {
 		viewer->spinOnce();
 
 		int c = cv::waitKey(1);
-		i++;
 
 		if (c == 'Q' || c == 27) {
 			/*** Loop Break Condition ***/
