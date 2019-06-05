@@ -22,7 +22,7 @@
 #define GLOG_minloglevel 3
 
 // OpenARK Libraries
-#include "Vresion.h"
+#include "Version.h"
 #ifdef PMDSDK_ENABLED
 #include "PMDCamera.h"
 #endif
@@ -176,13 +176,12 @@ int main(int argc, char ** argv) {
 
 	auto viewer = Visualizer::getPCLVisualizer();
 	auto vp0 = Visualizer::createPCLViewport(0, 0, 0.7, 1), vp1 = Visualizer::createPCLViewport(0.7, 0, 1, 1);
-	int i = 0;
 	std::vector<cv::Point> rgbJoints;
 	while (true) { 
 		camera->nextFrame(false);
 		cv::Mat xyzMap = camera->getXYZMap();
 		cv::Mat rgbMap = camera->getRGBMap();
-		human_detector->getHumanBodies.clear();
+		human_detector->getHumanBodies().clear();
 		human_detector->detectPoseRGB(rgbMap);
         long long deltaT = 1;
 		if (human_detector->getHumanBodies().size() != 0) {
@@ -226,9 +225,8 @@ int main(int argc, char ** argv) {
 
 			viewer->spinOnce();
 		}
-		cv::imshow(camera->getModelName() + " RGB Map", rgbMap);
+		//cv::imshow(camera->getModelName() + " RGB Map", rgbMap);
 		int c = cv::waitKey(1);
-		i++;
 
 		if (c == 'Q' || c == 27) {
 			/*** Loop Break Condition ***/
