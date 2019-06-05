@@ -83,7 +83,7 @@ int main() {
 							 // option flags
 	bool showHands = true, showPlanes = false, useSVM = true, useEdgeConn = false, showArea = false, playing = true;
 
-	const std::string directory_path = "C:\\dev\\OpenARK_dataset\\human-walk\\";
+	const std::string directory_path = "C:\\Users\\JZHAN299\\Documents\\OpenARK_Data\\james-1";
 
 	// turn on the camera
 	camera->beginCapture();
@@ -137,9 +137,9 @@ int main() {
 
 	std::string depth_path = directory_path + "depth\\";
 	std::string rgb_path = directory_path + "rgb\\";
-	if (boost::filesystem::exists(depth_path)) {
+	if (!boost::filesystem::exists(depth_path)) {
 		boost::filesystem::create_directories(depth_path);
-	} if (boost::filesystem::exists(rgb_path)) {
+	} if (!boost::filesystem::exists(rgb_path)) {
 		boost::filesystem::create_directories(rgb_path);
 	}
 
@@ -180,7 +180,7 @@ int main() {
 
 	// Run neural network to predict where the human joints are
 	std::string joint_path = directory_path + "joint\\";
-	if (boost::filesystem::exists(joint_path)) {
+	if (!boost::filesystem::exists(joint_path)) {
 		boost::filesystem::create_directories(joint_path);
 	}
 
