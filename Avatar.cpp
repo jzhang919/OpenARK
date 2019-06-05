@@ -638,7 +638,7 @@ namespace ark {
         }
 
         for (int iter = 0; iter < max_iter; ++iter) {
-            std::cout << ">> POSE FITTING: ITER " << iter << "\n";
+            // std::cout << ">> POSE FITTING: ITER " << iter << "\n";
             _propagateJointTransforms(_r, _p, _w, _pb, _pt, _rt, _cache);
             _updateCloud(_w, _pt, _cache, modelCloud);
 
@@ -690,7 +690,7 @@ namespace ark {
 
         _propagateJointTransforms(_r, _p, _w, _pb, _pt, _rt, _cache);
         _updateCloud(_w, _pt, _cache, modelCloud);
-        std::cout << ">> POSE FITTING: DONE\n";
+       // std::cout << ">> POSE FITTING: DONE\n";
     }
 
     void HumanAvatar::fitShape(const EigenCloud_T & dataCloud, int max_iter, int num_subiter, bool inv_nn, kd_tree_ptr_t kd_tree) {

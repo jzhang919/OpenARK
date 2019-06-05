@@ -136,7 +136,7 @@ ENDIF(Ceres_FOUND)
 include_directories(${CERES_INCLUDE_DIRS})
 
 # require SuiteSparse
-find_package( SuiteSparse QUIET )
+find_package( SuiteSparse REQUIRED )
 IF(SuiteSparse_FOUND)
     MESSAGE(STATUS "Found SuiteSparse: ${SuiteSparse_INCLUDE_DIRS} ${SuiteSparse_LIBRARIES}")
 ENDIF(SuiteSparse_FOUND)
@@ -162,6 +162,7 @@ if( USE_RSSDK2 )
   endif( realsense2_FOUND )
 endif( USE_RSSDK2 )
 
+MESSAGE(${realsense2_FOUND})
 set( RSSDK_FOUND OFF )
 if( USE_RSSDK OR NOT realsense2_FOUND )
   find_package( RSSDK )

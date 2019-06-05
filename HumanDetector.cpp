@@ -97,11 +97,11 @@ namespace ark {
         ava->updateCameraIntrin(intrin);
 
         if (begin_tracking == false) {
-            std::cout << "Fitting" << std::endl;
+            std::cout << "Fitting\n";
             ava->fit(humanCloud, deltat, false);
         }
         else {
-            std::cout << "Tracking" << std::endl;
+            //std::cout <<"Tracking\n";
             ava->fit(humanCloud, deltat, true);
         }
 
