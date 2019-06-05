@@ -255,8 +255,10 @@ namespace ark {
     }
 
     const cv::Mat DepthCamera::getRGBMap() const {
-        if (!hasRGBMap()) throw;
-
+		if (!hasRGBMap()) {
+			printf("NO RGB MAP.\n");
+			throw;
+		}
         std::lock_guard<std::mutex> lock(imageMutex);
         if (rgbMap.data == nullptr) return cv::Mat::zeros(getHeight(), getWidth(), CV_8UC3);
         return rgbMap;
