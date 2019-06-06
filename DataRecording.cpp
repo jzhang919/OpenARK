@@ -83,7 +83,7 @@ int main() {
 							 // option flags
 	bool showHands = true, showPlanes = false, useSVM = true, useEdgeConn = false, showArea = false, playing = true;
 
-	const std::string directory_path = "C:\\Users\\JZHAN299\\Documents\\OpenARK_Data\\james-1";
+	const std::string directory_path = "C:\\Users\\jzhan299\\Documents\\dataset\\james-1";
 
 	// turn on the camera
 	camera->beginCapture();
