@@ -617,6 +617,7 @@ namespace ark {
         cv::Mat floodFillMap = xyz_map.clone();
         filterByDepth(floodFillMap, 1, 3);
         cv::Mat ground = floodFillMap.clone();
+		cout << points_on_target[12].y << endl;
         //filterByHeight(ground, points_on_target[12].y);
 
         // Remove Plane
@@ -751,5 +752,7 @@ namespace ark {
                 out.row(i).x() = NAN;
             }
         }
+		cout << "Out:" << endl;
+		cout << out << endl; 
     }
 }
