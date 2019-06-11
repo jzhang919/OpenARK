@@ -18,7 +18,101 @@ namespace ark {
 
 	}
 
-	void BlinkDetector::visualizeBlink(DepthCamera::Ptr & camera, cv::Mat & rgbMap){
+	void BlinkDetector::detectHumanHOG(const cv::Mat& frame) {
+		cout << "HOG Call" << endl;
+		cv::Mat img, original;
+
+		// copy the rgb image where we'll applied the rectangles
+		img = frame.clone();
+
+		// convert to grayscale
+		cvtColor(img, img, CV_BGR2GRAY);
+
+		// downsample the image
+		cv::pyrDown(img, img, cv::Size(img.cols / 2, img.rows / 2));
+		cv::pyrDown(frame, original, cv::Size(frame.cols / 2, frame.rows / 2));
+
+		// equalize the image
+		equalizeHist(img, img);
+		std::vector<cv::Rect> found, found_filtered;
+
+		if (lastHumanDetectionBox.area() > 0) {
+			cv::Rect r = lastHumanDetectionBox;
+			int left_boundary, right_boundary;
+			left_boundary = std::max(r.x - 50, 0);
+			right_boundary = std::min(r.x + r.width + 50, img.cols);
+
+			cv::Rect rec(left_boundary, 0, right_boundary - left_boundary, img.rows);
+
+			cv::Mat Roi = img(rec);
+
+			humanHOG.detectMultiScale(Roi, found, 0, cv::Size(8, 8), cv::Size(32, 32), 1.05, 2);
+
+			size_t i, j;
+			for (i = 0; i < found.size(); i++) {
+				cv::Rect r = found[i];
+				for (j = 0; j < found.size(); j++) {
+					if (j != i && (r & found[j]) == r) {
+						break;
+					}
+				}
+				if (j == found.size()) {
+					found_filtered.push_back(r);
+				}
+			}
+
+			cv::Rect max_rect;
+			max_rect = find_max_rec(found_filtered);
+
+			if (max_rect.area() > 0) {
+
+				max_rect.x += cvRound(max_rect.width*0.1);
+				max_rect.width = cvRound(max_rect.width*0.8);
+				max_rect.y += cvRound(max_rect.height*0.06);
+				max_rect.height = cvRound(max_rect.height*0.9);
+				cv::Rect WhereRec(left_boundary + max_rect.x, max_rect.y, max_rect.width, max_rect.height);
+
+				rectangle(original, WhereRec, cv::Scalar(0, 255, 0), 2);
+			}
+
+			//copy the found filter
+			lastHumanDetectionBox = max_rect;
+		}
+		else {
+			humanHOG.detectMultiScale(img, found, 0, cv::Size(8, 8), cv::Size(32, 32), 1.05, 2);
+
+			size_t i, j;
+			for (i = 0; i < found.size(); i++) {
+				cv::Rect r = found[i];
+				for (j = 0; j < found.size(); j++) {
+					if (j != i && (r & found[j]) == r) {
+						break;
+					}
+				}
+				if (j == found.size()) {
+					found_filtered.push_back(r);
+				}
+			}
+
+			cv::Rect max_rect;
+			max_rect = find_max_rec(found_filtered);
+
+			if (max_rect.area() > 0) {
+				max_rect.x += cvRound(max_rect.width*0.1);
+				max_rect.width = cvRound(max_rect.width*0.8);
+				max_rect.y += cvRound(max_rect.height*0.06);
+				max_rect.height = cvRound(max_rect.height*0.9);
+				rectangle(original, max_rect.tl(), max_rect.br(), cv::Scalar(0, 255, 0), 2);
+
+			}
+
+			//copy the found filter
+			lastHumanDetectionBox = max_rect;
+		}
+		imshow("original", original);
+	}
+
+	void BlinkDetector::visualizeBlink(cv::Mat & rgbMap){
 		for (int k = 0; k < l_eye_pts.size(); k++) {
 			cv::circle(rgbMap, l_eye_pts[k], 1, cv::Scalar(0, 0, 255));
 		}
@@ -33,7 +127,7 @@ namespace ark {
 			cv::FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2);
 		cv::putText(rgbMap, ear_str, cv::Point2f(300, 30),
 			cv::FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2);
-		cv::imshow(camera->getModelName() + " RGB", rgbMap);
+		cv::imshow("RGB", rgbMap);
 	}
 
 	float BlinkDetector::getEyeAspectRatio(std::vector<cv::Point2d> eye) {

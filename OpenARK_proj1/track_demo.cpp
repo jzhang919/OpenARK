@@ -41,22 +41,56 @@
 #include "BlinkDetector.h"
 using namespace ark;
 
-int main()
-{
-	std::shared_ptr<BlinkDetector> blink_detector = std::make_shared<BlinkDetector>();
-	DepthCamera::Ptr camera = std::make_shared<ark::RS2Camera>(true);
+void processFile(std::shared_ptr<BlinkDetector> blink_detector, std::string path) {
+	cv::VideoCapture cap(path);
+	while (true) {
+		cv::Mat rgbMap;
+		cap >> rgbMap;
+		if (rgbMap.empty()) {
+			break;
+		}
+
+		blink_detector->update(rgbMap);
+		blink_detector->visualizeBlink(rgbMap);
+
+		int key = cv::waitKey(1) & 0xFF;
+		if (key == 'Q' || key == 27) {
+			break;
+		}
+	}
+	cap.release();
+	cv::destroyAllWindows();
+}
+
+void processVideo(std::shared_ptr<BlinkDetector> blink_detector) {
+	DepthCamera::Ptr camera = std::make_shared<RS2Camera>(true);
 	camera->beginCapture();
 	while (true) {
 		cv::Mat rgbMap = camera->getRGBMap();
+
 		blink_detector->update(rgbMap);
-		blink_detector->visualizeBlink(camera, rgbMap);
-	
+		blink_detector->visualizeBlink(rgbMap);
+
 		int key = cv::waitKey(1) & 0xFF;
 		if (key == 'Q' || key == 27) {
 			break;
 		}
 	}
 	cv::destroyAllWindows();
+}
+
+int main(int argc, char ** argv)
+{
+	std::shared_ptr<BlinkDetector> blink_detector = std::make_shared<BlinkDetector>();
+	auto path = "C:/Users/jzhan299/Downloads/eyeblink8/2/26122013_224532_cam.avi";
+	
+	if (argc == 1){
+		processVideo(blink_detector);
+	}
+	else {
+		processFile(blink_detector, path);
+	}
+	
 	return 0;
 }
 

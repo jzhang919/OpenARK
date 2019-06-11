@@ -18,7 +18,7 @@ namespace ark {
 		float EYE_AR_CONSEC_FRAMES = 3;
 
 		void update(cv::Mat &rgbMap);
-		void visualizeBlink(DepthCamera::Ptr & camera, cv::Mat & rgbMap);
+		void visualizeBlink(cv::Mat & rgbMap);
 		int getTotal(void);
 		float getEar(void);
 		std::vector<cv::Point2d> getLeftEyePts();
