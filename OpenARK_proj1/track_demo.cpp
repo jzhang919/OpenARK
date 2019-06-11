@@ -43,26 +43,17 @@ using namespace ark;
 
 int main()
 {
+	std::shared_ptr<BlinkDetector> blink_detector = std::make_shared<BlinkDetector>();
 	DepthCamera::Ptr camera = std::make_shared<ark::RS2Camera>(true);
 	camera->beginCapture();
 	while (true) {
 		cv::Mat rgbMap = camera->getRGBMap();
-
-		std::shared_ptr<BlinkDetector> blink_detector = std::make_shared<BlinkDetector>();
 		blink_detector->update(rgbMap);
+		blink_detector->visualizeBlink(camera, rgbMap);
+	
 		int key = cv::waitKey(1) & 0xFF;
 		if (key == 'Q' || key == 27) {
 			break;
-		}
-
-		std::vector<cv::Point2d> l_eye_pts = blink_detector->getLeftEyePts();
-		std::vector<cv::Point2d> r_eye_pts = blink_detector->getRightEyePts();
-		cv::Mat rgbVis = rgbMap.clone();
-		for (int k = 0; k < l_eye_pts.size(); k++) {
-			cv::circle(rgbVis, l_eye_pts[k], 1, cv::Scalar(0, 0, 255));
-		}
-		for (int l = 0; l < r_eye_pts.size(); l++) {
-			cv::circle(rgbVis, r_eye_pts[l], 1, cv::Scalar(0, 0, 255));
 		}
 	}
 	cv::destroyAllWindows();

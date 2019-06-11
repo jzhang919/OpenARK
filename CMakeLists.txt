@@ -228,6 +228,7 @@ set(
   glfwManager.cpp
   OkvisSLAMSystem.cpp
   D435iCamera.cpp
+  BlinkDetector.cpp
 )
 
 set(
@@ -265,6 +266,7 @@ set(
   ${INCLUDE_DIR}/CorrespondenceRansac.h
   ${INCLUDE_DIR}/D435iCalibWriter.h
   ${INCLUDE_DIR}/UKF.h
+  ${INCLUDE_DIR}/BlinkDetector.h
   stdafx.h
 )
 
