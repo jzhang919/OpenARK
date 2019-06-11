@@ -49,7 +49,8 @@ void processFile(std::shared_ptr<BlinkDetector> blink_detector, std::string path
 		if (rgbMap.empty()) {
 			break;
 		}
-		blink_detector->detectHumanHOG(rgbMap);
+		blink_detector->detectFace(rgbMap);
+		//blink_detector->detectHumanHOG(rgbMap);
 		blink_detector->update(rgbMap);
 		blink_detector->visualizeBlink(rgbMap);
 
@@ -67,7 +68,7 @@ void processVideo(std::shared_ptr<BlinkDetector> blink_detector) {
 	camera->beginCapture();
 	while (true) {
 		cv::Mat rgbMap = camera->getRGBMap();
-		blink_detector->detectHumanHOG(rgbMap);
+		blink_detector->detectFace(rgbMap);
 		blink_detector->update(rgbMap);
 		blink_detector->visualizeBlink(rgbMap);
 

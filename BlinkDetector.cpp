@@ -21,6 +21,39 @@ namespace ark {
 		faceDetector.load(HumanDetector::FACE_HAARCASCADE_FILE_PATH);
 
 	}
+
+	void BlinkDetector::detectFace(const cv::Mat &frame) {
+		cv::Mat img = frame.clone();
+		const std::string configFile = util::resolveRootPath("./config/face/deploy.prototxt");
+		const std::string weightFile = util::resolveRootPath("./config/face/res10_300x300_ssd_iter_140000_fp16.caffemodel");
+		cv::dnn::Net net = cv::dnn::readNetFromCaffe(configFile, weightFile);
+
+		cv::Mat inputBlob = cv::dnn::blobFromImage(img, 1.0, img.size(), cv::Scalar(0,0,0));
+
+		net.setInput(inputBlob, "data");
+		cv::Mat detection = net.forward("detection_out");
+
+		cv::Mat detectionMat(detection.size[2], detection.size[3], CV_32F, detection.ptr<float>());
+
+		for (int i = 0; i < detectionMat.rows; i++)
+		{
+			float confidence = detectionMat.at<float>(i, 2);
+			
+			if (confidence > 0.95)
+			{
+				cout << "Confidence: " << confidence << endl;
+				int x1 = static_cast<int>(detectionMat.at<float>(i, 3) * img.rows);
+				int y1 = static_cast<int>(detectionMat.at<float>(i, 4) * img.rows);
+				int x2 = static_cast<int>(detectionMat.at<float>(i, 5) * img.cols);
+				int y2 = static_cast<int>(detectionMat.at<float>(i, 6) * img.cols);
+
+				cv::rectangle(frame, cv::Point(x1, y1), cv::Point(x2, y2), cv::Scalar(0, 255, 0), 2, 4);
+				BlinkDetector::humanDetectionBox = cv::Rect(cv::Point(x1, y1), cv::Point(x2, y2));
+			}
+		}
+		cv::imshow("image", img);
+	}
+
 	static cv::Rect dlibRectangleToOpenCV(dlib::rectangle r)
 	{
 		return cv::Rect(cv::Point2i(r.left(), r.top()), cv::Point2i(r.right() + 1, r.bottom() + 1));
@@ -38,7 +71,7 @@ namespace ark {
 		}
 		return max_rect;
 	}
-
+	//TODO: Fix; currently <20% accuracy for unknown reasons.
 	void BlinkDetector::detectHumanHOG(const cv::Mat& frame) {
 		cv::Mat img, original;
 
@@ -51,7 +84,6 @@ namespace ark {
 		dlib::array2d<dlib::bgr_pixel> dlibImg;
 		dlib::assign_image(dlibImg, dlib::cv_image <dlib::bgr_pixel> (img));
 		found = faceHOG(dlibImg);
-		cout << "Found # of faces: " << found.size() << endl;
 		dlib::assign_image(dlibImg, dlib::cv_image<dlib::bgr_pixel>(img));
 		size_t i, j;
 		for (i = 0; i < found.size(); i++) {
@@ -77,13 +109,8 @@ namespace ark {
 			cv::rectangle(original, max_rect.tl(), max_rect.br(), cv::Scalar(0, 255, 0), 2);
 
 		}
-		else {
-			cout << "NO RECTANGLE FOUND, NO INITAL RECTANGLE" << endl;
-			return;
-		}
 
-		lastHumanDetectionBox = max_rect;
-		cv::imshow("original", original);
+		BlinkDetector::humanDetectionBox = max_rect;
 	}
 
 	void BlinkDetector::visualizeBlink(cv::Mat & rgbMap){
@@ -140,12 +167,15 @@ namespace ark {
 	void BlinkDetector::detectBlink(cv::Mat &rgbMap) {
 		BlinkDetector::l_eye_pts.clear();
 		BlinkDetector::r_eye_pts.clear();
-
+		cv::Mat frame = rgbMap.clone();
+		if (BlinkDetector::humanDetectionBox.area() > 0) {
+			frame = frame(BlinkDetector::humanDetectionBox);
+		}
 		cv::Mat gray;
 		std::vector<cv::Rect> faces;
 		std::vector<std::vector<cv::Point2f>> landmarks;
 
-		cv::cvtColor(rgbMap, gray, cv::COLOR_BGR2GRAY);
+		cv::cvtColor(frame, gray, cv::COLOR_BGR2GRAY);
 		equalizeHist(gray, gray);
 		faceDetector.detectMultiScale(gray, faces);
 		if (!(facemark->fit(gray, faces, landmarks))) {
@@ -161,7 +191,7 @@ namespace ark {
 			}
 		}
 		else {
-			cout << "HUH\n" << endl;
+			throw("Landmark detection failed!\n");
 		}
 		float left_EAR = BlinkDetector::getEyeAspectRatio(l_eye_pts);
 		float right_EAR = BlinkDetector::getEyeAspectRatio(r_eye_pts);

@@ -21,7 +21,8 @@ namespace ark {
 		float EYE_AR_CONSEC_FRAMES = 3;
 
 		void update(cv::Mat &rgbMap);
-		void BlinkDetector::detectHumanHOG(const cv::Mat& frame);
+		void detectFace(const cv::Mat& frame);
+		void detectHumanHOG(const cv::Mat& frame);
 		void visualizeBlink(cv::Mat & rgbMap);
 		int getTotal(void);
 		float getEar(void);
@@ -36,7 +37,7 @@ namespace ark {
 		int total;
 		float ear;
 		dlib::frontal_face_detector faceHOG;
-		cv::Rect lastHumanDetectionBox;
+		cv::Rect humanDetectionBox;
 		std::vector<cv::Point2d> l_eye_pts;
 		std::vector<cv::Point2d> r_eye_pts;
 		void detectBlink(cv::Mat &rgbMap);
