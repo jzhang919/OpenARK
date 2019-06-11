@@ -4,6 +4,9 @@
 #include "stdafx.h"
 #include "BlinkDetector.h"
 #include "HumanDetector.h"
+#include <dlib/gui_widgets.h>
+#include <dlib/image_io.h>
+#include <dlib/image_transforms.h>
 
 //std::string path = "tbd";
 
@@ -12,104 +15,75 @@ namespace ark {
 		// Since we have seen no humans previously, we set this to default value
 		BlinkDetector::total = 0;
 		BlinkDetector::ear = 0;
+		dlib::frontal_face_detector faceHOG = dlib::get_frontal_face_detector();
 		BlinkDetector::facemark = cv::face::FacemarkLBF::create();
 		facemark->loadModel(HumanDetector::FACE_LBFMODEL_FILE_PATH);
 		faceDetector.load(HumanDetector::FACE_HAARCASCADE_FILE_PATH);
 
 	}
+	static cv::Rect dlibRectangleToOpenCV(dlib::rectangle r)
+	{
+		return cv::Rect(cv::Point2i(r.left(), r.top()), cv::Point2i(r.right() + 1, r.bottom() + 1));
+	}
+
+	cv::Rect BlinkDetector::find_max_rec(const std::vector<cv::Rect>& found_filtered) {
+		int max_size = 0;
+		cv::Rect max_rect;
+		for (int i = 0; i < found_filtered.size(); i++) {
+			cv::Rect r = found_filtered[i];
+			if (r.area() > max_size) {
+				max_rect = found_filtered[i];
+			}
+
+		}
+		return max_rect;
+	}
 
 	void BlinkDetector::detectHumanHOG(const cv::Mat& frame) {
-		cout << "HOG Call" << endl;
 		cv::Mat img, original;
 
 		// copy the rgb image where we'll applied the rectangles
 		img = frame.clone();
 
 		// convert to grayscale
-		cvtColor(img, img, CV_BGR2GRAY);
-
-		// downsample the image
-		cv::pyrDown(img, img, cv::Size(img.cols / 2, img.rows / 2));
-		cv::pyrDown(frame, original, cv::Size(frame.cols / 2, frame.rows / 2));
-
-		// equalize the image
-		equalizeHist(img, img);
-		std::vector<cv::Rect> found, found_filtered;
-
-		if (lastHumanDetectionBox.area() > 0) {
-			cv::Rect r = lastHumanDetectionBox;
-			int left_boundary, right_boundary;
-			left_boundary = std::max(r.x - 50, 0);
-			right_boundary = std::min(r.x + r.width + 50, img.cols);
-
-			cv::Rect rec(left_boundary, 0, right_boundary - left_boundary, img.rows);
-
-			cv::Mat Roi = img(rec);
-
-			humanHOG.detectMultiScale(Roi, found, 0, cv::Size(8, 8), cv::Size(32, 32), 1.05, 2);
-
-			size_t i, j;
-			for (i = 0; i < found.size(); i++) {
-				cv::Rect r = found[i];
-				for (j = 0; j < found.size(); j++) {
-					if (j != i && (r & found[j]) == r) {
-						break;
-					}
-				}
-				if (j == found.size()) {
-					found_filtered.push_back(r);
+		std::vector<dlib::rectangle> found;
+		std::vector<cv::Rect> found_filtered;
+		dlib::array2d<dlib::bgr_pixel> dlibImg;
+		dlib::assign_image(dlibImg, dlib::cv_image <dlib::bgr_pixel> (img));
+		found = faceHOG(dlibImg);
+		cout << "Found # of faces: " << found.size() << endl;
+		dlib::assign_image(dlibImg, dlib::cv_image<dlib::bgr_pixel>(img));
+		size_t i, j;
+		for (i = 0; i < found.size(); i++) {
+			cv::Rect r = dlibRectangleToOpenCV(found[i]);
+			for (j = 0; j < found.size(); j++) {
+				if (j != i && (r & dlibRectangleToOpenCV(found[j])) == r) {
+					break;
 				}
 			}
-
-			cv::Rect max_rect;
-			max_rect = find_max_rec(found_filtered);
-
-			if (max_rect.area() > 0) {
-
-				max_rect.x += cvRound(max_rect.width*0.1);
-				max_rect.width = cvRound(max_rect.width*0.8);
-				max_rect.y += cvRound(max_rect.height*0.06);
-				max_rect.height = cvRound(max_rect.height*0.9);
-				cv::Rect WhereRec(left_boundary + max_rect.x, max_rect.y, max_rect.width, max_rect.height);
-
-				rectangle(original, WhereRec, cv::Scalar(0, 255, 0), 2);
+			if (j == found.size()) {
+				found_filtered.push_back(r);
 			}
+		}
 
-			//copy the found filter
-			lastHumanDetectionBox = max_rect;
+		cv::Rect max_rect;
+		max_rect = find_max_rec(found_filtered);
+
+		if (max_rect.area() > 0) {
+			max_rect.x += cvRound(max_rect.width*0.1);
+			max_rect.width = cvRound(max_rect.width*0.8);
+			max_rect.y += cvRound(max_rect.height*0.06);
+			max_rect.height = cvRound(max_rect.height*0.9);
+			cv::rectangle(original, max_rect.tl(), max_rect.br(), cv::Scalar(0, 255, 0), 2);
+
 		}
 		else {
-			humanHOG.detectMultiScale(img, found, 0, cv::Size(8, 8), cv::Size(32, 32), 1.05, 2);
-
-			size_t i, j;
-			for (i = 0; i < found.size(); i++) {
-				cv::Rect r = found[i];
-				for (j = 0; j < found.size(); j++) {
-					if (j != i && (r & found[j]) == r) {
-						break;
-					}
-				}
-				if (j == found.size()) {
-					found_filtered.push_back(r);
-				}
-			}
-
-			cv::Rect max_rect;
-			max_rect = find_max_rec(found_filtered);
-
-			if (max_rect.area() > 0) {
-				max_rect.x += cvRound(max_rect.width*0.1);
-				max_rect.width = cvRound(max_rect.width*0.8);
-				max_rect.y += cvRound(max_rect.height*0.06);
-				max_rect.height = cvRound(max_rect.height*0.9);
-				rectangle(original, max_rect.tl(), max_rect.br(), cv::Scalar(0, 255, 0), 2);
-
-			}
-
-			//copy the found filter
-			lastHumanDetectionBox = max_rect;
+			cout << "NO RECTANGLE FOUND, NO INITAL RECTANGLE" << endl;
+			return;
 		}
-		imshow("original", original);
+
+		lastHumanDetectionBox = max_rect;
+		cv::imshow("original", original);
 	}
 
 	void BlinkDetector::visualizeBlink(cv::Mat & rgbMap){
@@ -172,6 +146,7 @@ namespace ark {
 		std::vector<std::vector<cv::Point2f>> landmarks;
 
 		cv::cvtColor(rgbMap, gray, cv::COLOR_BGR2GRAY);
+		equalizeHist(gray, gray);
 		faceDetector.detectMultiScale(gray, faces);
 		if (!(facemark->fit(gray, faces, landmarks))) {
 			return;

@@ -8,7 +8,10 @@
 #include <string>
 #include <vector>
 #include "Detector.h"
-
+#include <dlib/image_processing/frontal_face_detector.h>
+#include <dlib/image_io.h>
+#include <dlib/opencv/cv_image.h>
+#include <dlib/pixel.h>
 namespace ark {
 	class BlinkDetector : public Detector {
 	public:
@@ -18,6 +21,7 @@ namespace ark {
 		float EYE_AR_CONSEC_FRAMES = 3;
 
 		void update(cv::Mat &rgbMap);
+		void BlinkDetector::detectHumanHOG(const cv::Mat& frame);
 		void visualizeBlink(cv::Mat & rgbMap);
 		int getTotal(void);
 		float getEar(void);
@@ -31,10 +35,13 @@ namespace ark {
 		cv::Ptr<cv::face::Facemark> facemark;
 		int total;
 		float ear;
+		dlib::frontal_face_detector faceHOG;
+		cv::Rect lastHumanDetectionBox;
 		std::vector<cv::Point2d> l_eye_pts;
 		std::vector<cv::Point2d> r_eye_pts;
 		void detectBlink(cv::Mat &rgbMap);
 		float getEyeAspectRatio(std::vector<cv::Point2d> eye);
+		cv::Rect BlinkDetector::find_max_rec(const std::vector<cv::Rect>& found_filtered);
 		int consecBlinkCounter;
 	};
 
