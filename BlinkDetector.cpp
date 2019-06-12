@@ -22,33 +22,48 @@ namespace ark {
 
 	}
 
+	static void drawPred(float conf, int left, int top, int right, int bottom, cv::Mat& frame)
+	{
+		rectangle(frame, cv::Point(left, top), cv::Point(right, bottom), cv::Scalar(0, 255, 0));
+
+		std::string label = cv::format("%.2f", conf);
+
+		int baseLine;
+		cv::Size labelSize = cv::getTextSize(label, cv::FONT_HERSHEY_SIMPLEX, 0.5, 1, &baseLine);
+
+		top = max(top, labelSize.height);
+		cv::rectangle(frame, cv::Point(left, top - labelSize.height),
+			cv::Point(left + labelSize.width, top + baseLine), cv::Scalar::all(255), cv::FILLED);
+		putText(frame, label, Point(left, top), cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar());
+	}
+
+	//Detects the singular, most likely face in picture.
 	void BlinkDetector::detectFace(const cv::Mat &frame) {
 		cv::Mat img = frame.clone();
 		const std::string configFile = util::resolveRootPath("./config/face/deploy.prototxt");
-		const std::string weightFile = util::resolveRootPath("./config/face/res10_300x300_ssd_iter_140000_fp16.caffemodel");
+		const std::string weightFile = util::resolveRootPath("./config/face/res10_300x300_ssd_iter_140000.caffemodel");
 		cv::dnn::Net net = cv::dnn::readNetFromCaffe(configFile, weightFile);
 
-		cv::Mat inputBlob = cv::dnn::blobFromImage(img, 1.0, img.size(), cv::Scalar(0,0,0));
+		cv::Mat inputBlob = cv::dnn::blobFromImage(img, 1, cv::Size(256,192), cv::Scalar(104.0, 177.0, 123.0));
 
 		net.setInput(inputBlob, "data");
-		cv::Mat detection = net.forward("detection_out");
+		cv::Mat output = net.forward("detection_out");
 
-		cv::Mat detectionMat(detection.size[2], detection.size[3], CV_32F, detection.ptr<float>());
+		cv::Mat faces(output.size[2], output.size[3], CV_32F, output.ptr<float>());
 
-		for (int i = 0; i < detectionMat.rows; i++)
+		float confidence = 0.0;
+		for (int i = 0; i < faces.rows; i++)
 		{
-			float confidence = detectionMat.at<float>(i, 2);
-			
-			if (confidence > 0.95)
-			{
-				cout << "Confidence: " << confidence << endl;
-				int x1 = static_cast<int>(detectionMat.at<float>(i, 3) * img.rows);
-				int y1 = static_cast<int>(detectionMat.at<float>(i, 4) * img.rows);
-				int x2 = static_cast<int>(detectionMat.at<float>(i, 5) * img.cols);
-				int y2 = static_cast<int>(detectionMat.at<float>(i, 6) * img.cols);
+			float *data = faces.ptr<float>(i);
+			if (data[2] > confidence && data[2] > 0.5) {
+				confidence = faces.at<float>(i, 2);
+				int x1 = static_cast<int>(data[3] * img.cols);
+				int y1 = static_cast<int>(data[4] * img.rows);
+				int x2 = static_cast<int>(data[5] * img.cols);
+				int y2 = static_cast<int>(data[6] * img.rows);
 
-				cv::rectangle(frame, cv::Point(x1, y1), cv::Point(x2, y2), cv::Scalar(0, 255, 0), 2, 4);
 				BlinkDetector::humanDetectionBox = cv::Rect(cv::Point(x1, y1), cv::Point(x2, y2));
+				drawPred(confidence, x1, y1, x2, y2, img);
 			}
 		}
 		cv::imshow("image", img);
@@ -71,6 +86,7 @@ namespace ark {
 		}
 		return max_rect;
 	}
+
 	//TODO: Fix; currently <20% accuracy for unknown reasons.
 	void BlinkDetector::detectHumanHOG(const cv::Mat& frame) {
 		cv::Mat img, original;
@@ -168,13 +184,17 @@ namespace ark {
 		BlinkDetector::l_eye_pts.clear();
 		BlinkDetector::r_eye_pts.clear();
 		cv::Mat frame = rgbMap.clone();
-		if (BlinkDetector::humanDetectionBox.area() > 0) {
+		if (BlinkDetector::humanDetectionBox.area() > 0 && ((BlinkDetector::humanDetectionBox & cv::Rect(0, 0, frame.cols, frame.rows)) == BlinkDetector::humanDetectionBox)) {
 			frame = frame(BlinkDetector::humanDetectionBox);
+			cv::rectangle(rgbMap, BlinkDetector::humanDetectionBox.tl(), BlinkDetector::humanDetectionBox.br(), cv::Scalar(0, 255, 0), 2, 4);
 		}
 		cv::Mat gray;
 		std::vector<cv::Rect> faces;
 		std::vector<std::vector<cv::Point2f>> landmarks;
 
+		cv::Size wholesize;
+		cv::Point offset;
+		frame.locateROI(wholesize, offset);
 		cv::cvtColor(frame, gray, cv::COLOR_BGR2GRAY);
 		equalizeHist(gray, gray);
 		faceDetector.detectMultiScale(gray, faces);
@@ -184,10 +204,10 @@ namespace ark {
 		
 		if (landmarks[0].size() == 68) {
 			for (int i = 36; i < 42; i++) {
-				BlinkDetector::l_eye_pts.push_back(landmarks[0][i]);
+				BlinkDetector::l_eye_pts.push_back(landmarks[0][i] + cv::Point2f(offset));
 			}
 			for (int j = 42; j < 48; j++) {
-				BlinkDetector::r_eye_pts.push_back(landmarks[0][j]);
+				BlinkDetector::r_eye_pts.push_back(landmarks[0][j] + cv::Point2f(offset));
 			}
 		}
 		else {
