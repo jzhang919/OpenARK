@@ -19,6 +19,11 @@
 #include <opencv2/face.hpp>
 #include <opencv2/ximgproc.hpp>
 
+#include <boost/archive/tmpdir.hpp>
+#include <boost/archive/xml_iarchive.hpp>
+#include <boost/archive/xml_oarchive.hpp>
+#include <boost/serialization/vector.hpp>
+
 #define GLOG_minloglevel 3
 
 // OpenARK Libraries
@@ -41,8 +46,16 @@
 #include "BlinkDetector.h"
 using namespace ark;
 
+void serializeEars(std::vector<float> & ears) {
+	std::ofstream ofs("C:/Users/jzhan299/Downloads/eyeblink8/1/test.xml");
+	assert(ofs.good());
+	boost::archive::xml_oarchive oa(ofs);
+	oa << BOOST_SERIALIZATION_NVP(ears);
+}
+
 void processFile(std::shared_ptr<BlinkDetector> blink_detector, std::string path) {
 	cv::VideoCapture cap(path);
+	std::vector<float> ears;
 	while (true) {
 		cv::Mat rgbMap;
 		cap >> rgbMap;
@@ -50,22 +63,23 @@ void processFile(std::shared_ptr<BlinkDetector> blink_detector, std::string path
 			break;
 		}
 		blink_detector->detectFace(rgbMap);
-		//blink_detector->detectHumanHOG(rgbMap);
 		blink_detector->update(rgbMap);
 		blink_detector->visualizeBlink(rgbMap);
-
+		ears.push_back(blink_detector->getEar());
 		int key = cv::waitKey(1) & 0xFF;
 		if (key == 'Q' || key == 27) {
 			break;
 		}
 	}
 	cap.release();
+	serializeEars(ears);
 	cv::destroyAllWindows();
 }
 
 void processVideo(std::shared_ptr<BlinkDetector> blink_detector) {
 	DepthCamera::Ptr camera = std::make_shared<RS2Camera>(true);
 	camera->beginCapture();
+	cout << "Camera intrinsics." << endl;
 	while (true) {
 		cv::Mat rgbMap = camera->getRGBMap();
 		blink_detector->detectFace(rgbMap);
@@ -83,7 +97,7 @@ void processVideo(std::shared_ptr<BlinkDetector> blink_detector) {
 int main(int argc, char ** argv)
 {
 	std::shared_ptr<BlinkDetector> blink_detector = std::make_shared<BlinkDetector>();
-	auto path = "C:/Users/jzhan299/Downloads/eyeblink8/1/26122013_223310_cam.avi";
+	auto path = "C:/Users/jzhan299/Downloads/eyeblink8/1/1.avi";
 	
 	if (argc == 1){
 		processVideo(blink_detector);
