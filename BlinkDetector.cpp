@@ -4,11 +4,6 @@
 #include "stdafx.h"
 #include "BlinkDetector.h"
 #include "HumanDetector.h"
-#include <dlib/gui_widgets.h>
-#include <dlib/image_io.h>
-#include <dlib/image_transforms.h>
-
-//std::string path = "tbd";
 
 namespace ark {
 	BlinkDetector::BlinkDetector(DetectionParams::Ptr params) {
@@ -19,7 +14,8 @@ namespace ark {
 		BlinkDetector::facemark = cv::face::FacemarkLBF::create();
 		facemark->loadModel(HumanDetector::FACE_LBFMODEL_FILE_PATH);
 		faceDetector.load(HumanDetector::FACE_HAARCASCADE_FILE_PATH);
-
+		BlinkDetector::fDetector = dlib::get_frontal_face_detector();
+		dlib::deserialize(util::resolveRootPath("/config/face/eye_eyebrows_22.dat")) >> BlinkDetector::eyeDetector;
 	}
 
 	static void drawPred(float conf, int left, int top, int right, int bottom, cv::Mat& frame)
@@ -74,6 +70,15 @@ namespace ark {
 		return cv::Rect(cv::Point2i(r.left(), r.top()), cv::Point2i(r.right() + 1, r.bottom() + 1));
 	}
 
+	static void dlibPointToOpenCV(dlib::full_object_detection& S, std::vector<cv::Point2f>& L, double scale = 1.0)
+	{
+		for (unsigned int i = 0; i<S.num_parts(); ++i)
+		{
+			L.push_back(cv::Point2f(S.part(i).x()*(1 / scale), S.part(i).y()*(1 / scale)));
+		}
+	}
+
+
 	cv::Rect BlinkDetector::find_max_rec(const std::vector<cv::Rect>& found_filtered) {
 		int max_size = 0;
 		cv::Rect max_rect;
@@ -94,7 +99,6 @@ namespace ark {
 		// copy the rgb image where we'll applied the rectangles
 		img = frame.clone();
 
-		// convert to grayscale
 		std::vector<dlib::rectangle> found;
 		std::vector<cv::Rect> found_filtered;
 		dlib::array2d<dlib::bgr_pixel> dlibImg;
@@ -183,6 +187,44 @@ namespace ark {
 	void BlinkDetector::detectBlink(cv::Mat &rgbMap) {
 		BlinkDetector::l_eye_pts.clear();
 		BlinkDetector::r_eye_pts.clear();
+		dlib::array2d<dlib::bgr_pixel> img;
+		dlib::assign_image(img, dlib::cv_image<dlib::bgr_pixel>(rgbMap));
+		
+		std::vector<dlib::rectangle> faces = BlinkDetector::fDetector(img);
+		if (faces.size() == 0)
+			return;
+		dlib::full_object_detection shapes = BlinkDetector::eyeDetector(img, faces[0]);
+		if (shapes.num_parts() == 22) {
+			for (int i = 2; i < 8; i++) {
+				BlinkDetector::l_eye_pts.push_back(cv::Point2f(shapes.part(i).x(), shapes.part(i).y()));
+			}
+			for (int j = 8; j < 15; j++) {
+				if (j != 12) // Skip eyebrow index.
+					BlinkDetector::r_eye_pts.push_back(cv::Point2f(shapes.part(j).x(), shapes.part(j).y()));
+			}
+		}
+		else {
+			throw("Landmark detection failed!\n");
+		}
+		float left_EAR = BlinkDetector::getEyeAspectRatio(l_eye_pts);
+		float right_EAR = BlinkDetector::getEyeAspectRatio(r_eye_pts);
+		BlinkDetector::ear = (left_EAR + right_EAR) / 2.0;
+		std::cout << "Eye aspect ratio: " << BlinkDetector::ear << std::endl;
+		if (BlinkDetector::ear < EYE_AR_THRESH) {
+			BlinkDetector::consecBlinkCounter++;
+		}
+		else {
+			if (BlinkDetector::consecBlinkCounter >= EYE_AR_CONSEC_FRAMES) {
+				BlinkDetector::total++;
+			}
+			BlinkDetector::consecBlinkCounter = 0;
+		}
+	}
+
+	void BlinkDetector::detectBlinkOpenCV(cv::Mat &rgbMap) {
+		BlinkDetector::l_eye_pts.clear();
+		BlinkDetector::r_eye_pts.clear();
+		BlinkDetector::detectFace(rgbMap);
 		cv::Mat frame = rgbMap.clone();
 		if (BlinkDetector::humanDetectionBox.area() > 0 && ((BlinkDetector::humanDetectionBox & cv::Rect(0, 0, frame.cols, frame.rows)) == BlinkDetector::humanDetectionBox)) {
 			frame = frame(BlinkDetector::humanDetectionBox);

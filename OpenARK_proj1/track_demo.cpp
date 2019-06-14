@@ -47,7 +47,7 @@
 using namespace ark;
 
 void serializeEars(std::vector<float> & ears) {
-	std::ofstream ofs("C:/Users/jzhan299/Downloads/eyeblink8/1/test.xml");
+	std::ofstream ofs("C:/Users/jzhan299/Downloads/eyeblink8/8/8.xml");
 	assert(ofs.good());
 	boost::archive::xml_oarchive oa(ofs);
 	oa << BOOST_SERIALIZATION_NVP(ears);
@@ -62,7 +62,6 @@ void processFile(std::shared_ptr<BlinkDetector> blink_detector, std::string path
 		if (rgbMap.empty()) {
 			break;
 		}
-		blink_detector->detectFace(rgbMap);
 		blink_detector->update(rgbMap);
 		blink_detector->visualizeBlink(rgbMap);
 		ears.push_back(blink_detector->getEar());
@@ -79,16 +78,37 @@ void processFile(std::shared_ptr<BlinkDetector> blink_detector, std::string path
 void processVideo(std::shared_ptr<BlinkDetector> blink_detector) {
 	DepthCamera::Ptr camera = std::make_shared<RS2Camera>(true);
 	camera->beginCapture();
-	cout << "Camera intrinsics." << endl;
+	// store frame & FPS information
+	const int FPS_CYCLE_FRAMES = 8; // number of frames to average FPS over (FPS 'cycle' length)
+	using ms = std::chrono::duration<float, std::milli>;
+	using time_point = std::chrono::high_resolution_clock::time_point;
+
+	std::chrono::high_resolution_clock timer = std::chrono::high_resolution_clock();
+	time_point currCycleStartTime = timer.now(); // start time of current cycle
+
+	float currFPS; // current FPS
+
+	int currFrame = 0; // current frame number (since launch/last pause)
 	while (true) {
+		++currFrame;
 		cv::Mat rgbMap = camera->getRGBMap();
-		blink_detector->detectFace(rgbMap);
+		//blink_detector->detectFace(rgbMap);
 		blink_detector->update(rgbMap);
 		blink_detector->visualizeBlink(rgbMap);
 
 		int key = cv::waitKey(1) & 0xFF;
 		if (key == 'Q' || key == 27) {
 			break;
+		}
+		// update FPS
+		if (currFrame % FPS_CYCLE_FRAMES == 0) {
+			time_point now = timer.now();
+			currFPS = (float)FPS_CYCLE_FRAMES * 1000.0f / std::chrono::duration_cast<ms>(now - currCycleStartTime).count();
+			currCycleStartTime = now;
+		}
+
+		if (currFrame > FPS_CYCLE_FRAMES) {
+			printf("FPS: %02.3f\n", currFPS);
 		}
 	}
 	cv::destroyAllWindows();
@@ -97,7 +117,7 @@ void processVideo(std::shared_ptr<BlinkDetector> blink_detector) {
 int main(int argc, char ** argv)
 {
 	std::shared_ptr<BlinkDetector> blink_detector = std::make_shared<BlinkDetector>();
-	auto path = "C:/Users/jzhan299/Downloads/eyeblink8/1/1.avi";
+	auto path = "C:/Users/jzhan299/Downloads/eyeblink8/8/8.avi";
 	
 	if (argc == 1){
 		processVideo(blink_detector);
