@@ -6,16 +6,76 @@
 #include "HumanDetector.h"
 
 namespace ark {
+	static std::string type2str(int type) {
+		std::string r;
+
+		uchar depth = type & CV_MAT_DEPTH_MASK;
+		uchar chans = 1 + (type >> CV_CN_SHIFT);
+
+		switch (depth) {
+		case CV_8U:  r = "8U"; break;
+		case CV_8S:  r = "8S"; break;
+		case CV_16U: r = "16U"; break;
+		case CV_16S: r = "16S"; break;
+		case CV_32S: r = "32S"; break;
+		case CV_32F: r = "32F"; break;
+		case CV_64F: r = "64F"; break;
+		default:     r = "User"; break;
+		}
+
+		r += "C";
+		r += (chans + '0');
+
+		return r;
+	}
+
 	BlinkDetector::BlinkDetector(DetectionParams::Ptr params) {
 		// Since we have seen no humans previously, we set this to default value
 		BlinkDetector::total = 0;
 		BlinkDetector::ear = 0;
+		loadSVM("C:/Users/jzhan299/Downloads/eyeblink8");
 		dlib::frontal_face_detector faceHOG = dlib::get_frontal_face_detector();
 		BlinkDetector::facemark = cv::face::FacemarkLBF::create();
 		facemark->loadModel(HumanDetector::FACE_LBFMODEL_FILE_PATH);
 		faceDetector.load(HumanDetector::FACE_HAARCASCADE_FILE_PATH);
 		BlinkDetector::fDetector = dlib::get_frontal_face_detector();
 		dlib::deserialize(util::resolveRootPath("/config/face/eye_eyebrows_22.dat")) >> BlinkDetector::eyeDetector;
+	}
+
+	bool BlinkDetector::loadSVM(const std::string & ipath) {
+		using namespace boost::filesystem;
+
+		const char * FILE_NAME = "svm.xml";
+
+		std::string loadPath = ipath + "/" + FILE_NAME;
+
+		std::ifstream testIfs(loadPath);
+		if (!testIfs) {
+			cout << "NOT TRAINED" << endl;
+			return trained = false;
+		}
+
+		svm = cv::ml::SVM::load(loadPath);
+		trained = true;
+		return trained;
+	}
+
+	float BlinkDetector::classify(const cv::Mat & features) const {
+		if (!trained) {
+			printf("ERROR: SVM not trained. Please initialize using loadFile.\n");
+			return -1;
+		}
+		// if no fingers, predict not hand
+		if (!features.data || features.cols == 0) return 0.0;
+	
+		features.convertTo(features, CV_32F);
+		string ty = type2str(features.type());
+		printf("Matrix: %s %dx%d \n", ty.c_str(), features.cols, features.rows);
+
+		double result = svm->predict(features);
+
+		// range [0, 1]
+		return std::max(std::min(1.0, result), 0.0);
 	}
 
 	static void drawPred(float conf, int left, int top, int right, int bottom, cv::Mat& frame)
@@ -210,15 +270,25 @@ namespace ark {
 		float right_EAR = BlinkDetector::getEyeAspectRatio(r_eye_pts);
 		BlinkDetector::ear = (left_EAR + right_EAR) / 2.0;
 		std::cout << "Eye aspect ratio: " << BlinkDetector::ear << std::endl;
-		if (BlinkDetector::ear < EYE_AR_THRESH) {
-			BlinkDetector::consecBlinkCounter++;
-		}
-		else {
-			if (BlinkDetector::consecBlinkCounter >= EYE_AR_CONSEC_FRAMES) {
+		ears.push_back(ear);
+		if (ears.size() > 13) {
+			ears.erase(ears.begin());
+			cv::Mat ear_window = cv::Mat(ears);
+			cv::resize(ear_window, ear_window, cv::Size(13, 1));
+			if (BlinkDetector::classify(ear_window)) {
 				BlinkDetector::total++;
 			}
-			BlinkDetector::consecBlinkCounter = 0;
 		}
+		//OBSOLETE: Thresholding eyeblink detection
+		//if (BlinkDetector::ear < EYE_AR_THRESH) {
+		//	BlinkDetector::consecBlinkCounter++;
+		//}
+		//else {
+		//	if (BlinkDetector::consecBlinkCounter >= EYE_AR_CONSEC_FRAMES) {
+		//		BlinkDetector::total++;
+		//	}
+		//	BlinkDetector::consecBlinkCounter = 0;
+		//}
 	}
 
 	void BlinkDetector::detectBlinkOpenCV(cv::Mat &rgbMap) {

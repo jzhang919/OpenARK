@@ -4,11 +4,13 @@
 #include <opencv2/core.hpp>
 #include <opencv2/dnn.hpp>
 #include <opencv2/face.hpp>
+#include <opencv2/ml.hpp>
 #include "RS2Camera.h"
 #include <string>
 #include <vector>
 #include "Detector.h"
 
+#include <boost/circular_buffer.hpp>
 #include <dlib/image_processing/frontal_face_detector.h>
 #include <dlib/image_io.h>
 #include <dlib/opencv/cv_image.h>
@@ -19,6 +21,9 @@
 #include <dlib/image_processing/render_face_detections.h>
 #include <dlib/image_processing.h>
 #include <iostream>
+
+#define		NUM_FEATS		13
+
 namespace ark {
 	class BlinkDetector : public Detector {
 	public:
@@ -28,6 +33,7 @@ namespace ark {
 		float EYE_AR_CONSEC_FRAMES = 3;
 
 		void update(cv::Mat &rgbMap);
+		bool loadSVM(const std::string & ipath);
 		void detectFace(const cv::Mat& frame);
 		void detectHumanHOG(const cv::Mat& frame);
 		void visualizeBlink(cv::Mat & rgbMap);
@@ -35,6 +41,7 @@ namespace ark {
 		float getEar(void);
 		std::vector<cv::Point2d> getLeftEyePts();
 		std::vector<cv::Point2d> getRightEyePts();
+		float classify(const cv::Mat & features) const;
 	protected:
 		void detect(cv::Mat & image) override;
 
@@ -45,6 +52,7 @@ namespace ark {
 		cv::Ptr<cv::face::Facemark> facemark;
 		int total;
 		float ear;
+		std::vector<float> ears;
 		dlib::frontal_face_detector faceHOG;
 		cv::Rect humanDetectionBox;
 		std::vector<cv::Point2d> l_eye_pts;
@@ -54,6 +62,9 @@ namespace ark {
 		float getEyeAspectRatio(std::vector<cv::Point2d> eye);
 		cv::Rect BlinkDetector::find_max_rec(const std::vector<cv::Rect>& found_filtered);
 		int consecBlinkCounter;
+
+		cv::Ptr<cv::ml::SVM> svm;
+		bool trained;
 	};
 
 }

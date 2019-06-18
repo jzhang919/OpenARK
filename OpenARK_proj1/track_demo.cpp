@@ -117,7 +117,7 @@ void processVideo(std::shared_ptr<BlinkDetector> blink_detector) {
 int main(int argc, char ** argv)
 {
 	std::shared_ptr<BlinkDetector> blink_detector = std::make_shared<BlinkDetector>();
-	auto path = "C:/Users/jzhan299/Downloads/eyeblink8/8/8.avi";
+	auto path = "C:/Users/jzhan299/Downloads/eyeblink8/1/1.avi";
 	
 	if (argc == 1){
 		processVideo(blink_detector);
