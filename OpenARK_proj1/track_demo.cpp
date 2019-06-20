@@ -95,7 +95,6 @@ void processVideo(std::shared_ptr<BlinkDetector> blink_detector) {
 		//blink_detector->detectFace(rgbMap);
 		blink_detector->update(rgbMap);
 		blink_detector->visualizeBlink(rgbMap);
-
 		int key = cv::waitKey(1) & 0xFF;
 		if (key == 'Q' || key == 27) {
 			break;
@@ -116,8 +115,9 @@ void processVideo(std::shared_ptr<BlinkDetector> blink_detector) {
 
 int main(int argc, char ** argv)
 {
+	cout << "Beginning Eyeblink Detection Test!" << endl;
 	std::shared_ptr<BlinkDetector> blink_detector = std::make_shared<BlinkDetector>();
-	auto path = "C:/Users/jzhan299/Downloads/eyeblink8/1/1.avi";
+	auto path = "C:/Users/jzhan299/Downloads/eyeblink8/8/8.avi";
 	
 	if (argc == 1){
 		processVideo(blink_detector);

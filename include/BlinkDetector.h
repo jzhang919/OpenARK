@@ -57,7 +57,7 @@ namespace ark {
 		cv::Rect humanDetectionBox;
 		std::vector<cv::Point2d> l_eye_pts;
 		std::vector<cv::Point2d> r_eye_pts;
-		void detectBlink(cv::Mat &rgbMap);
+		void detectBlinkDLib(cv::Mat &rgbMap);
 		void BlinkDetector::detectBlinkOpenCV(cv::Mat &rgbMap);
 		float getEyeAspectRatio(std::vector<cv::Point2d> eye);
 		cv::Rect BlinkDetector::find_max_rec(const std::vector<cv::Rect>& found_filtered);

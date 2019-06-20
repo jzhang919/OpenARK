@@ -45,7 +45,7 @@ namespace ark {
 	bool BlinkDetector::loadSVM(const std::string & ipath) {
 		using namespace boost::filesystem;
 
-		const char * FILE_NAME = "svm.xml";
+		const char * FILE_NAME = "svm_small.xml";
 
 		std::string loadPath = ipath + "/" + FILE_NAME;
 
@@ -69,11 +69,11 @@ namespace ark {
 		if (!features.data || features.cols == 0) return 0.0;
 	
 		features.convertTo(features, CV_32F);
-		string ty = type2str(features.type());
-		printf("Matrix: %s %dx%d \n", ty.c_str(), features.cols, features.rows);
+		/*string ty = type2str(features.type());
+		printf("Matrix: %s %dx%d \n", ty.c_str(), features.cols, features.rows);*/
 
 		double result = svm->predict(features);
-
+		cout << "SVM Prediction: " << result << endl;
 		// range [0, 1]
 		return std::max(std::min(1.0, result), 0.0);
 	}
@@ -99,8 +99,9 @@ namespace ark {
 		const std::string configFile = util::resolveRootPath("./config/face/deploy.prototxt");
 		const std::string weightFile = util::resolveRootPath("./config/face/res10_300x300_ssd_iter_140000.caffemodel");
 		cv::dnn::Net net = cv::dnn::readNetFromCaffe(configFile, weightFile);
-
-		cv::Mat inputBlob = cv::dnn::blobFromImage(img, 1, cv::Size(256,192), cv::Scalar(104.0, 177.0, 123.0));
+		net.setPreferableBackend(cv::dnn::DNN_BACKEND_INFERENCE_ENGINE);
+		net.setPreferableTarget(cv::dnn::DNN_TARGET_MYRIAD);
+		cv::Mat inputBlob = cv::dnn::blobFromImage(img, 1, cv::Size(160,120), cv::Scalar(104.0, 177.0, 123.0),true, false);
 
 		net.setInput(inputBlob, "data");
 		cv::Mat output = net.forward("detection_out");
@@ -113,16 +114,20 @@ namespace ark {
 			float *data = faces.ptr<float>(i);
 			if (data[2] > confidence && data[2] > 0.5) {
 				confidence = faces.at<float>(i, 2);
-				int x1 = static_cast<int>(data[3] * img.cols);
-				int y1 = static_cast<int>(data[4] * img.rows);
-				int x2 = static_cast<int>(data[5] * img.cols);
-				int y2 = static_cast<int>(data[6] * img.rows);
+				int x1 = static_cast<int>(data[3] * frame.cols) - frame.cols/20;
+				int y1 = static_cast<int>(data[4] * frame.rows) - frame.rows/20;
+				int x2 = static_cast<int>(data[5] * frame.cols) + frame.cols/20;
+				int y2 = static_cast<int>(data[6] * frame.rows) + frame.rows/20;
 
-				BlinkDetector::humanDetectionBox = cv::Rect(cv::Point(x1, y1), cv::Point(x2, y2));
-				drawPred(confidence, x1, y1, x2, y2, img);
+				BlinkDetector::humanDetectionBox = cv::Rect(
+					cv::Point(std::max(0, x1), std::max(0,y1)), 
+					cv::Point(std::min(frame.cols, x2), std::min(frame.rows, y2))
+				);
+				//drawPred(confidence, x1, y1, x2, y2, img);
 			}
 		}
-		cv::imshow("image", img);
+		//cout << humanDetectionBox << endl;
+		//cv::imshow("image", img);
 	}
 
 	static cv::Rect dlibRectangleToOpenCV(dlib::rectangle r)
@@ -225,7 +230,7 @@ namespace ark {
 	}
 
 	void BlinkDetector::detect(cv::Mat &image) {
-		detectBlink(image);
+		detectBlinkOpenCV(image);
 	}
 
 	int BlinkDetector::getTotal() {
@@ -244,7 +249,7 @@ namespace ark {
 		return BlinkDetector::r_eye_pts;
 	}
 
-	void BlinkDetector::detectBlink(cv::Mat &rgbMap) {
+	void BlinkDetector::detectBlinkDLib(cv::Mat &rgbMap) {
 		BlinkDetector::l_eye_pts.clear();
 		BlinkDetector::r_eye_pts.clear();
 		dlib::array2d<dlib::bgr_pixel> img;
@@ -296,10 +301,11 @@ namespace ark {
 		BlinkDetector::r_eye_pts.clear();
 		BlinkDetector::detectFace(rgbMap);
 		cv::Mat frame = rgbMap.clone();
-		if (BlinkDetector::humanDetectionBox.area() > 0 && ((BlinkDetector::humanDetectionBox & cv::Rect(0, 0, frame.cols, frame.rows)) == BlinkDetector::humanDetectionBox)) {
-			frame = frame(BlinkDetector::humanDetectionBox);
-			cv::rectangle(rgbMap, BlinkDetector::humanDetectionBox.tl(), BlinkDetector::humanDetectionBox.br(), cv::Scalar(0, 255, 0), 2, 4);
+		if (BlinkDetector::humanDetectionBox.area() <= 0 || !((BlinkDetector::humanDetectionBox & cv::Rect(0, 0, frame.cols, frame.rows)) == BlinkDetector::humanDetectionBox)) {
+			return;
 		}
+		frame = frame(BlinkDetector::humanDetectionBox);
+		cv::rectangle(rgbMap, BlinkDetector::humanDetectionBox.tl(), BlinkDetector::humanDetectionBox.br(), cv::Scalar(0, 255, 0), 2, 4);
 		cv::Mat gray;
 		std::vector<cv::Rect> faces;
 		std::vector<std::vector<cv::Point2f>> landmarks;
@@ -329,7 +335,7 @@ namespace ark {
 		float right_EAR = BlinkDetector::getEyeAspectRatio(r_eye_pts);
 		BlinkDetector::ear = (left_EAR + right_EAR) / 2.0;
 		std::cout << "Eye aspect ratio: " << BlinkDetector::ear << std::endl;
-		if (BlinkDetector::ear < EYE_AR_THRESH) {
+	/*	if (BlinkDetector::ear < EYE_AR_THRESH) {
 			BlinkDetector::consecBlinkCounter++;
 		}
 		else {
@@ -337,6 +343,16 @@ namespace ark {
 				BlinkDetector::total++;
 			}
 			BlinkDetector::consecBlinkCounter = 0;
+		}*/
+		ears.push_back(ear);
+		if (ears.size() > 13) {
+			ears.erase(ears.begin());
+			cv::Mat ear_window = cv::Mat(ears);
+			cv::resize(ear_window, ear_window, cv::Size(13, 1));
+			if (BlinkDetector::classify(ear_window)) {
+				ears.clear();
+				BlinkDetector::total++;
+			}
 		}
 	}
 }
