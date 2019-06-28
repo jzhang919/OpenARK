@@ -34,8 +34,6 @@ namespace ark {
 
 		void update(cv::Mat &rgbMap);
 		bool loadSVM(const std::string & ipath);
-		void detectFace(const cv::Mat& frame);
-		void detectHumanHOG(const cv::Mat& frame);
 		void visualizeBlink(cv::Mat & rgbMap);
 		int getTotal(void);
 		float getEar(void);
@@ -57,6 +55,8 @@ namespace ark {
 		cv::Rect humanDetectionBox;
 		std::vector<cv::Point2d> l_eye_pts;
 		std::vector<cv::Point2d> r_eye_pts;
+		void detectFace(const cv::Mat& frame);
+		void detectHumanHOG(const cv::Mat& frame);
 		void detectBlinkDLib(cv::Mat &rgbMap);
 		void BlinkDetector::detectBlinkOpenCV(cv::Mat &rgbMap);
 		float getEyeAspectRatio(std::vector<cv::Point2d> eye);

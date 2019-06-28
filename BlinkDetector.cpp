@@ -99,8 +99,8 @@ namespace ark {
 		const std::string configFile = util::resolveRootPath("./config/face/deploy.prototxt");
 		const std::string weightFile = util::resolveRootPath("./config/face/res10_300x300_ssd_iter_140000.caffemodel");
 		cv::dnn::Net net = cv::dnn::readNetFromCaffe(configFile, weightFile);
-		net.setPreferableBackend(cv::dnn::DNN_BACKEND_INFERENCE_ENGINE);
-		net.setPreferableTarget(cv::dnn::DNN_TARGET_MYRIAD);
+		//net.setPreferableBackend(cv::dnn::DNN_BACKEND_INFERENCE_ENGINE);
+		//net.setPreferableTarget(cv::dnn::DNN_TARGET_MYRIAD);
 		cv::Mat inputBlob = cv::dnn::blobFromImage(img, 1, cv::Size(160,120), cv::Scalar(104.0, 177.0, 123.0),true, false);
 
 		net.setInput(inputBlob, "data");

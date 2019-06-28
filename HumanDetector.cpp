@@ -502,6 +502,7 @@ namespace ark {
 
     void HumanDetector::detectHeadPose(const cv::Mat& frame) {
         cv::Mat gray;
+		cout << "WE ENTER HERE" << endl;
 
         // Find face
         std::vector<cv::Rect> faces;
@@ -559,7 +560,7 @@ namespace ark {
         }
 
         cv::line(frame, image_points[0], nose_end_point2D[0], cv::Scalar(255, 0, 0), 2);
-
+		
         cv::imshow("Facial Landmark Detection", frame);
     }
 
